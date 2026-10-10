@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Familien-Weltkarte</title>
+<style>
+  :root{
+    --ocean:#16335c;
+    --land:#f3f6fb;
+    --border:#9aa7b4;
+    --ink:#1f2a36;
+    --muted:#6b7886;
+    --panel:#ffffff;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+    --accent:#2c6fbf;
+    --home:#FFC300;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:#05070d;overflow:hidden;
+  }
+  button{font-family:inherit;cursor:pointer}
+
+  /* ---------- Login ---------- */
+  #login{position:fixed;inset:0;z-index:50;background:linear-gradient(160deg,#1a3a6b,#05070d);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+  .login-card{background:#fff;border-radius:18px;box-shadow:var(--shadow);width:min(540px,100%);padding:28px;margin:auto}
+  .login-card h1{margin:0 0 4px;font-size:24px}
+  .login-card p.sub{margin:0 0 20px;color:var(--muted);font-size:14px}
+  .userlist{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+  .user-pick{display:flex;align-items:center;gap:12px;border:1px solid #e3e8ee;border-radius:12px;padding:10px 12px;background:#fafbfc;text-align:left;transition:.15s;width:100%}
+  .user-pick:hover{border-color:var(--accent);background:#f2f7fd}
+  .swatch{width:22px;height:22px;border-radius:50%;flex:0 0 auto;border:2px solid rgba(0,0,0,.15)}
+  .user-pick .nm{font-weight:600;font-size:16px;flex:1}
+  .user-pick .meta{font-size:12px;color:var(--muted)}
+  .iconbtn{border:1px solid #e0e6ec;background:#fff;border-radius:9px;width:34px;height:34px;font-size:15px;line-height:1;color:var(--ink)}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .divider{height:1px;background:#eef1f4;margin:18px 0}
+  .addrow{display:grid;grid-template-columns:1fr auto;gap:10px}
+  input[type=text],input[type=password],input[type=date],textarea{padding:11px 12px;border:1px solid #d7dde4;border-radius:10px;font-size:14px;width:100%;font-family:inherit}
+  textarea{resize:vertical;min-height:70px}
+  .colorgrid{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .colorgrid label{cursor:pointer}
+  .colorgrid input{display:none}
+  .colorgrid .c{width:28px;height:28px;border-radius:50%;border:3px solid transparent;display:block}
+  .colorgrid input:checked + .c{border-color:#1f2a36;transform:scale(1.08)}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:14px;font-weight:600}
+  .btn.ghost{background:#eef3f8;color:var(--ink)}
+  .btn.danger{background:#e54b4b;color:#fff}
+  .btn:hover{filter:brightness(.96)}
+  .small{font-size:12px;color:var(--muted)}
+
+  /* ---------- Top bar ---------- */
+  #topbar{position:fixed;top:0;left:0;right:0;z-index:20;height:56px;display:flex;align-items:center;gap:10px;padding:0 12px;background:rgba(10,14,22,.82);backdrop-filter:blur(6px);border-bottom:1px solid #1c2533}
+  #topbar .me{display:flex;align-items:center;gap:8px;font-weight:600;color:#fff}
+  #topbar .grow{flex:1}
+  .pill{border:1px solid #2a3647;background:#11161f;border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;color:#dfe6ef}
+  .pill:hover{border-color:var(--accent);color:#fff}
+  .pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* kein overflow am Balken: sonst klippt er das ⋯-Menü und die Suchergebnisse (man müsste scrollen).
+     Die Leiste ist responsiv (Icon-Modus auf schmal), läuft also nicht über. */
+  #searchWrap{position:relative;flex:0 0 auto}
+  #searchBox{padding:7px 11px;border:1px solid #2a3647;background:#11161f;color:#dfe6ef;border-radius:999px;font-size:13px;width:140px;font-family:inherit}
+  #searchBox:focus{outline:none;border-color:var(--accent);width:180px}
+  #searchResults{position:absolute;top:115%;left:0;min-width:200px;background:#11161f;border:1px solid #2a3647;border-radius:10px;max-height:260px;overflow:auto;display:none;z-index:25;box-shadow:var(--shadow)}
+  #searchResults.open{display:block}
+  #searchResults button{display:block;width:100%;text-align:left;background:none;border:none;color:#dfe6ef;padding:9px 12px;font-size:13px;border-bottom:1px solid #1c2533;cursor:pointer}
+  #searchResults button:hover{background:#1b2330;color:#fff}
+  #moreWrap{position:relative;flex:0 0 auto}
+  #moreMenu{position:absolute;top:115%;right:0;min-width:190px;background:#11161f;border:1px solid #2a3647;border-radius:10px;display:none;z-index:26;box-shadow:var(--shadow);overflow:hidden}
+  #moreMenu.open{display:block}
+  #moreMenu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;color:#dfe6ef;padding:11px 14px;font-size:13px;border-bottom:1px solid #1c2533;cursor:pointer}
+  #moreMenu button:last-child{border-bottom:none}
+  #moreMenu button:hover{background:#1b2330;color:#fff}
+  /* Schmale Viewports (Handy): Pills auf Icons reduzieren, Name/Suche kompakt -> kein horizontales Scrollen */
+  @media (max-width:560px){
+    #topbar{gap:7px;padding:0 8px}
+    #topbar .me .lbl, #meName{display:none}
+    .pill .lbl{display:none}
+    #searchBox{width:104px}
+    #searchBox:focus{width:140px}
+  }
+
+  /* ---------- Globe ---------- */
+  #mapwrap{position:fixed;inset:56px 0 0 0;background:#03040a;overflow:hidden}
+  /* Sternenhimmel: lädt zuerst dein Bild (assets/nebula.*), sonst die SVG, sonst die Verläufe */
+  #space{position:absolute;inset:0;z-index:0;pointer-events:none;background-position:center;background-size:cover;background-repeat:no-repeat;}
+  #space.fallback{
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 70% 60%, #cfe0ff, transparent),
+      radial-gradient(1px 1px at 40% 80%, #fff, transparent),
+      radial-gradient(1px 1px at 85% 20%, #ffe9c7, transparent),
+      radial-gradient(1px 1px at 55% 15%, #fff, transparent),
+      radial-gradient(2px 2px at 30% 65%, #fff, transparent),
+      radial-gradient(1px 1px at 90% 75%, #cfe0ff, transparent),
+      radial-gradient(1px 1px at 10% 55%, #fff, transparent),
+      radial-gradient(1px 1px at 65% 35%, #fff, transparent),
+      radial-gradient(1px 1px at 5% 85%, #fff, transparent),
+      radial-gradient(1px 1px at 50% 92%, #ffe9c7, transparent),
+      radial-gradient(1px 1px at 78% 48%, #fff, transparent),
+      radial-gradient(2px 2px at 15% 12%, #fff, transparent),
+      radial-gradient(1px 1px at 95% 40%, #fff, transparent),
+      radial-gradient(1px 1px at 35% 45%, #cfe0ff, transparent),
+      radial-gradient(1px 1px at 60% 70%, #fff, transparent);
+    animation:twinkle 6s ease-in-out infinite alternate;}
+  @keyframes twinkle{from{opacity:.55}to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){#space.fallback{animation:none}}
+  #map{position:relative;z-index:1;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #map.grabbing{cursor:grabbing}
+  #map path.country{stroke:var(--border);stroke-width:.4px;cursor:pointer;vector-effect:non-scaling-stroke}
+  #map path.country:hover{stroke:#fff;stroke-width:1.1px}
+  #map .sphere{fill:var(--ocean)}
+  #map .graticule{fill:none;stroke:#2e567f;stroke-width:.4px;opacity:.5}
+  #map .glow{fill:none;stroke:#3a6db5;stroke-width:3px;opacity:.4}
+  /* Atlas-Look nur im 2D-Karten-Modus */
+  #map.atlas .sphere{fill:#add6ec}
+  #map.atlas .graticule{stroke:#6fa6c4;opacity:.22}
+  #map.atlas path.country{stroke:#7d8a6a;stroke-width:.5px}
+  #map .relief{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+  #map .relief.wide{stroke:#b98a55;stroke-width:16px;opacity:.32}
+  #map .relief.core{stroke:#7a531f;stroke-width:6px;opacity:.5}
+  #map .river{fill:none;stroke:#2f7fcf;stroke-width:1.8px;vector-effect:non-scaling-stroke;opacity:.95;stroke-linecap:round}
+  #map .river.on{stroke-width:5px;opacity:1;filter:drop-shadow(0 0 3px #6fc4ff) drop-shadow(0 0 2px #aee0ff)}
+  #map .mtn{fill:none;stroke:#7a4f24;stroke-width:1.8px;vector-effect:non-scaling-stroke;opacity:.95;stroke-linecap:round}
+  #map .mtn.on{stroke-width:3.8px;opacity:1}
+  #map .hit{fill:none;stroke:transparent;stroke-width:18px;vector-effect:non-scaling-stroke;cursor:pointer;pointer-events:stroke}
+  #map .peakdot{fill:#7a4f24;stroke:#fff;stroke-width:.7px;pointer-events:none}
+  #map .peakhit{fill:transparent;cursor:pointer}
+  #map path.country.found{stroke:#ff3b3b;stroke-width:3px}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb0c4;font-size:15px;text-align:center}
+  #tooltip{position:fixed;z-index:30;pointer-events:none;display:none;background:#0c1422;color:#fff;padding:7px 10px;border-radius:8px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.5);max-width:240px;line-height:1.45;border:1px solid #243349}
+  .zoomctl{position:absolute;right:14px;bottom:16px;display:flex;flex-direction:column;gap:6px}
+  .zoomctl button{width:40px;height:40px;border-radius:10px;border:1px solid #2a3647;background:#11161f;color:#dfe6ef;font-size:20px;box-shadow:var(--shadow)}
+  .hint{position:absolute;left:14px;bottom:16px;background:rgba(12,18,28,.85);border:1px solid #243349;border-radius:10px;padding:8px 11px;font-size:12px;color:#9fb0c4;max-width:280px}
+  .hint b{color:#dfe6ef}
+
+  /* ---------- Side panel ---------- */
+  #panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);z-index:40;background:var(--panel);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+  #panel.open{transform:translateX(0)}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid #eef1f4}
+  .panel-head h2{margin:0;font-size:18px;flex:1}
+  .panel-body{overflow:auto;padding:16px;flex:1}
+  .tabs{display:flex;gap:6px;padding:0 16px;border-bottom:1px solid #eef1f4}
+  .tabs button{border:none;background:none;padding:12px 6px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .card{border:1px solid #eef1f4;border-radius:14px;padding:14px;margin-bottom:14px}
+  .card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+  .statgrid .s{background:#f6f8fb;border-radius:10px;padding:10px 4px}
+  .statgrid .s .n{font-size:22px;font-weight:800}
+  .statgrid .s .l{font-size:11px;color:var(--muted)}
+  .ach{margin:10px 0}
+  .ach .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .ach .top .t{font-weight:600}.ach .top .v{color:var(--muted)}
+  .bar{height:9px;background:#eef1f4;border-radius:999px;overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+  .next{font-size:12px;color:var(--muted);margin-top:5px}
+  .done{font-size:12px;color:#2e9e5b;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .chip{background:#f2f6fb;border:1px solid #e0e8f0;border-radius:999px;padding:5px 10px;font-size:13px;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+  .chip:hover{border-color:var(--accent)}
+  .chip button{border:none;background:none;color:#b33;font-size:15px;line-height:1;padding:0;cursor:pointer}
+  .addinline{display:flex;gap:8px;margin-top:6px}
+  .addinline input{flex:1}
+  .addinline input.emoji{flex:0 0 64px;text-align:center}
+  .addinline button{padding:9px 13px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:600}
+  .member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f5f8}
+  .member-row .nm{font-weight:600;flex:1}
+  .member-row .counts{font-size:12px;color:var(--muted)}
+  .badgecount{font-size:11px;background:#fff3d6;color:#9a6b00;border-radius:999px;padding:2px 8px;font-weight:700}
+  .cov{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .cov .pct{font-size:30px;font-weight:800;line-height:1}
+  .contbars .cb{display:flex;align-items:center;gap:8px;font-size:12px;margin:5px 0}
+  .contbars .cb .lbl{width:86px;color:var(--muted);flex:0 0 auto}
+  .contbars .cb .bar{flex:1}
+  .contbars .cb .num{width:46px;text-align:right;color:var(--muted);flex:0 0 auto}
+  .timeline{position:relative;margin-top:8px;padding-left:18px;border-left:2px solid #e6ebf1}
+  .tl{position:relative;padding:6px 0 10px;cursor:pointer}
+  .tl:hover .tlname{color:var(--accent)}
+  .tldot{position:absolute;left:-25px;top:8px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d7dde4}
+  .tldate{font-size:12px;color:var(--muted);font-weight:600}
+  .tlname{font-weight:600;font-size:14px}
+  .tlnote{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* ---------- Modal ---------- */
+  #modal{position:fixed;inset:0;z-index:60;background:rgba(5,7,13,.6);display:none;align-items:center;justify-content:center;padding:18px;overflow:auto}
+  #modal.open{display:flex}
+  .modal-box{background:#fff;border-radius:16px;box-shadow:var(--shadow);width:min(520px,100%);max-height:92vh;overflow:auto;padding:22px;margin:auto}
+  .modal-box h2{margin:0 0 12px;font-size:20px;display:flex;align-items:center;gap:8px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+  .modal-actions .grow{flex:1}
+  .photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .photo{position:relative;width:84px;height:84px;border-radius:10px;overflow:hidden;border:1px solid #e0e6ec}
+  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .photo button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer}
+  .checkrow{display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:14px}
+  .checkrow input{width:18px;height:18px}
+  .homechip{font-size:11px;background:#fff3cd;color:#8a6d00;border:1px solid #ffe08a;border-radius:999px;padding:3px 9px;font-weight:700}
+  .factbox{background:#f6f8fb;border:1px solid #eef1f4;border-radius:12px;padding:12px 14px;margin-bottom:16px}
+  .fact{display:flex;justify-content:space-between;gap:14px;padding:5px 0;font-size:14px;border-bottom:1px solid #edf1f5}
+  .fact:last-child{border-bottom:none}
+  .fact .fk{color:var(--muted);font-weight:600;white-space:nowrap}
+  .fact .fv{text-align:right}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card">
+    <h1>🌍 Familien-Weltkarte</h1>
+    <p class="sub">Wer bist du? Wähle deine Person aus.</p>
+    <div class="userlist" id="userlist"></div>
+    <div class="divider"></div>
+    <p class="small" style="margin:0 0 8px;font-weight:600;color:var(--ink)">Neue Person anlegen</p>
+    <div class="addrow">
+      <input type="text" id="newName" placeholder="Name (z.B. Emil)" maxlength="24">
+      <button class="btn" id="addUserBtn">Hinzufügen</button>
+    </div>
+    <div class="colorgrid" id="colorgrid"></div>
+    <input type="password" id="newPass" placeholder="Passwort (optional)">
+  </div>
+</div>
+
+<!-- ============ TOP BAR ============ -->
+<div id="topbar" style="display:none">
+  <div class="me"><span class="swatch" id="meSwatch"></span><span id="meName"></span></div>
+  <div id="searchWrap"><input id="searchBox" placeholder="Land suchen…" autocomplete="off"><div id="searchResults"></div></div>
+  <div class="grow"></div>
+  <button class="pill" id="toggleView" title="Zwischen Globus und Karte umschalten">🗺️ <span class="lbl">Karte</span></button>
+  <button class="pill" id="openPanel" title="Daten & Erfolge">📊 <span class="lbl">Daten &amp; Erfolge</span></button>
+  <button class="pill" id="switchUser" title="Person wechseln">↺ <span class="lbl">Person wechseln</span></button>
+  <!-- "Alle anzeigen" + Sichern/Laden/Einstellungen ins ⋯-Überlaufmenü, damit die Leiste
+       auf Tablets/schmalen Viewports nicht horizontal überläuft. -->
+  <div id="moreWrap">
+    <button class="pill" id="btnMore" title="Mehr">⋯</button>
+    <div id="moreMenu">
+      <button data-act="all">👨‍👩‍👧 Alle anzeigen</button>
+      <button data-act="backup">💾 Sichern</button>
+      <button data-act="restore">📂 Laden</button>
+      <button data-act="settings">⚙️ Einstellungen</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="importFile" accept="application/json,.json" style="display:none">
+
+<!-- ============ GLOBE ============ -->
+<div id="mapwrap" style="display:none">
+  <div id="space" class="fallback"></div>
+  <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="loading">Lade Erde …</div>
+  <div class="zoomctl">
+    <button id="zin">+</button>
+    <button id="zout">−</button>
+    <button id="zreset" title="Ansicht zurücksetzen">⊙</button>
+  </div>
+  <div class="hint" id="hint"></div>
+</div>
+<div id="tooltip"></div>
+
+<!-- ============ PANEL ============ -->
+<div id="panel">
+  <div class="panel-head">
+    <h2>Daten &amp; Erfolge</h2>
+    <button class="pill" id="closePanel">✕</button>
+  </div>
+  <div class="tabs">
+    <button data-tab="me" class="active">Ich</button>
+    <button data-tab="family">Familie</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div id="modal"><div class="modal-box" id="modalBox"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+/* =================================================================
+   Familien-Weltkarte – 3D-Globus, lokale Speicherung im Browser
+   ================================================================= */
+const STORE_KEY="familienWeltkarte_v3";
+const COLORS=["#e6194B","#3cb44b","#4363d8","#f58231","#911eb4","#f032e6","#008080","#9A6324","#800000","#469990","#e6b800","#000075"];
+const HOME_DEFAULT="DEU";            // Deutschland (ADM0_A3) als Standard-Heimatland
+function homeId(){ return (state.settings&&state.settings.homeId)||HOME_DEFAULT; }   // pro Familie konfigurierbar (Block 5)
+const HOME_COLOR=getComputedStyle(document.documentElement).getPropertyValue('--home').trim()||"#FFC300";
+
+const LADDERS={
+  countries:{label:"Länder",icon:"🗺️",steps:[[1,"Erster Schritt"],[3,"Reiselust"],[5,"Globetrotter"],[10,"Weltenbummler"],[20,"Kontinentalreisender"],[35,"Erfahrener Reisender"],[50,"Halbe-Hundert-Held"],[75,"Vielflieger"],[100,"Jahrhundert-Reisender"],[150,"Welt-Eroberer"],[195,"Die ganze Welt"]]},
+  cities:{label:"Städte",icon:"🏙️",steps:[[1,"Stadtbummler"],[5,"Städtetour"],[10,"Metropolen-Fan"],[25,"Stadt-Sammler"],[50,"Urban Explorer"],[100,"Städte-Profi"],[200,"Großstadt-Legende"]]},
+  waters:{label:"Gewässer",icon:"🌊",steps:[[1,"Erste Welle"],[3,"Wasserratte"],[5,"Seefahrer"],[10,"Ozean-Entdecker"],[20,"Meister der Meere"],[35,"Tiefsee-Taucher"],[50,"Neptun persönlich"]]},
+  mountains:{label:"Gebirge",icon:"⛰️",steps:[[1,"Erster Gipfel"],[2,"Bergwanderer"],[5,"Gipfelstürmer"],[10,"Höhenflug"],[20,"Bergziege"],[30,"Alpinist"],[50,"Gipfelkönig"]]}
+};
+
+/* ---------- Feste Basis der 195 anerkannten Staaten (Block 1) ----------
+   193 UN-Mitglieder + Vatikan (VAT) + Palästina (PSE). Fest eingebettet (nicht aus der
+   async geladenen Fakten-Quelle), damit Weltabdeckung & Kontinent-Achievements sofort
+   und offline korrekt rechnen. ISO-3166-1 alpha-3 Codes. */
+const OFFICIAL = new Set([
+  // Afrika (54)
+  "DZA","AGO","BEN","BWA","BFA","BDI","CPV","CMR","CAF","TCD","COM","COG","COD","CIV","DJI","EGY","GNQ","ERI","SWZ","ETH","GAB","GMB","GHA","GIN","GNB","KEN","LSO","LBR","LBY","MDG","MWI","MLI","MRT","MUS","MAR","MOZ","NAM","NER","NGA","RWA","STP","SEN","SYC","SLE","SOM","ZAF","SSD","SDN","TZA","TGO","TUN","UGA","ZMB","ZWE",
+  // Asien (47) + Palästina
+  "AFG","ARM","AZE","BHR","BGD","BTN","BRN","KHM","CHN","CYP","GEO","IND","IDN","IRN","IRQ","ISR","JPN","JOR","KAZ","KWT","KGZ","LAO","LBN","MYS","MDV","MNG","MMR","NPL","PRK","OMN","PAK","PHL","QAT","SAU","SGP","KOR","LKA","SYR","TJK","THA","TLS","TUR","TKM","ARE","UZB","VNM","YEM","PSE",
+  // Europa (43) + Vatikan
+  "ALB","AND","AUT","BLR","BEL","BIH","BGR","HRV","CZE","DNK","EST","FIN","FRA","DEU","GRC","HUN","ISL","IRL","ITA","LVA","LIE","LTU","LUX","MLT","MDA","MCO","MNE","NLD","MKD","NOR","POL","PRT","ROU","RUS","SMR","SRB","SVK","SVN","ESP","SWE","CHE","UKR","GBR","VAT",
+  // Nordamerika (23)
+  "ATG","BHS","BRB","BLZ","CAN","CRI","CUB","DMA","DOM","SLV","GRD","GTM","HTI","HND","JAM","MEX","NIC","PAN","KNA","LCA","VCT","TTO","USA",
+  // Südamerika (12)
+  "ARG","BOL","BRA","CHL","COL","ECU","GUY","PRY","PER","SUR","URY","VEN",
+  // Ozeanien (14)
+  "AUS","FJI","KIR","MHL","FSM","NRU","NZL","PLW","PNG","WSM","SLB","TON","TUV","VUT"
+]);
+/* Natural-Earth ADM0_A3 weicht für wenige Staaten vom ISO-A3 ab -> auf die Karten-ID mappen.
+   (Wird nach der Start-Validierung bei Bedarf erweitert.) */
+const NE_ALIAS = { PSE:"PSX", SSD:"SDS" };   // Palästina & Südsudan haben in NE abweichende ADM0_A3
+function officialAsGeoId(code){ return NE_ALIAS[code]||code; }
+/* NE taggt diese Inselstaaten als "Seven seas (open ocean)"; für die Kontinent-Vollständigkeit
+   ihrem tatsächlichen Kontinent zuordnen, sonst wären Afrika/Asien nie komplett. */
+const CONTI_FIX = { MUS:"Africa", SYC:"Africa", MDV:"Asia" };
+let OFFICIAL_GEO=null;   // Set der Karten-IDs (ADM0_A3), die zu den 195 offiziellen Staaten gehören
+
+/* ---------- Wichtigste Gebirge & Flüsse (anklickbar nur in der 2D-Karte) ---------- */
+const MOUNTAINS=[
+  {id:"alpen",name:"Alpen",coords:[[6.0,45.9],[8.0,46.3],[10.5,46.9],[13,47.0],[15.0,47.3]]},
+  {id:"himalaya",name:"Himalaya",coords:[[74,35],[78,33],[82,30],[86,28],[90,28],[95,29]]},
+  {id:"anden",name:"Anden",coords:[[-71,8],[-76,-2],[-71,-16],[-70,-24],[-70,-33],[-72,-41],[-73,-50]]},
+  {id:"rocky",name:"Rocky Mountains",coords:[[-114,49],[-112,45],[-110,41],[-106,37],[-105,33]]},
+  {id:"ural",name:"Ural",coords:[[59,68],[60,64],[59,60],[58,56],[57.5,53]]},
+  {id:"appalachen",name:"Appalachen",coords:[[-78,36],[-80,35.5],[-82,37.5],[-75,42],[-71,45]]},
+  {id:"pyrenaeen",name:"Pyrenäen",coords:[[-1.5,43.3],[0.5,42.8],[2,42.5],[3,42.4]]},
+  {id:"karpaten",name:"Karpaten",coords:[[18.5,49.3],[20,49.2],[22,48],[24,47.8],[26,45.5]]},
+  {id:"kaukasus",name:"Kaukasus",coords:[[40,43.5],[43,42.8],[45,42.5],[47,41.5]]},
+  {id:"atlas",name:"Atlasgebirge",coords:[[-8,31],[-5,32],[-2,33],[2,34],[6,35]]},
+  {id:"skanden",name:"Skandinavisches Gebirge",coords:[[7,59],[9,61],[12,64],[15,66],[18,68]]},
+  {id:"gdr",name:"Great Dividing Range",coords:[[151,-28],[152,-31],[149,-35],[147,-37]]},
+  {id:"tianshan",name:"Tianshan",coords:[[70,42],[75,42.5],[80,42],[85,43]]},
+  {id:"drakensberge",name:"Drakensberge",coords:[[29,-29],[28,-30],[27,-30.5]]},
+  {id:"apennin",name:"Apennin",coords:[[10,44],[12,43],[14,41.5],[16,40],[16,38.5]]},
+  {id:"dinarisches",name:"Dinarisches Gebirge",coords:[[14,45.5],[16,44.3],[18,43.2],[19.5,42.3]]},
+  {id:"alaskakette",name:"Alaskakette",coords:[[-153,62.5],[-150,62.9],[-146,63.3],[-143,63.0]]},
+  {id:"mackenziemts",name:"Mackenzie Mountains",coords:[[-130,63],[-127,64],[-124,65]]},
+  {id:"everest",name:"Mount Everest",coords:[[86.85,27.93],[86.99,28.02]]},
+  {id:"k2",name:"K2",coords:[[76.45,35.79],[76.56,35.91]]},
+  {id:"kangchen",name:"Kangchendzönga",coords:[[88.10,27.62],[88.18,27.74]]},
+  {id:"annapurna",name:"Annapurna",coords:[[83.79,28.53],[83.88,28.62]]},
+  {id:"nangaparbat",name:"Nanga Parbat",coords:[[74.56,35.18],[74.64,35.27]]},
+  {id:"fuji",name:"Fujiyama",coords:[[138.71,35.34],[138.75,35.39]]},
+  {id:"kilimandscharo",name:"Kilimandscharo",coords:[[37.30,-3.10],[37.40,-3.02]]},
+  {id:"rwenzori",name:"Rwenzori",coords:[[29.85,0.36],[29.92,0.43]]},
+  {id:"denali",name:"Denali",coords:[[-151.10,63.04],[-151.00,63.12]]},
+  {id:"aconcagua",name:"Aconcagua",coords:[[-70.02,-32.70],[-69.95,-32.62]]},
+  {id:"huascaran",name:"Huascarán",coords:[[-77.62,-9.13],[-77.55,-9.05]]},
+  {id:"chimborazo",name:"Chimborazo",coords:[[-78.85,-1.52],[-78.78,-1.44]]},
+  {id:"montblanc",name:"Mont Blanc",coords:[[6.82,45.80],[6.90,45.85]]},
+  {id:"matterhorn",name:"Matterhorn",coords:[[7.63,45.95],[7.69,46.00]]},
+  {id:"grossglockner",name:"Großglockner",coords:[[12.66,47.05],[12.72,47.10]]},
+  {id:"zugspitze",name:"Zugspitze",coords:[[10.96,47.40],[11.01,47.43]]},
+  {id:"elbrus",name:"Elbrus",coords:[[42.42,43.33],[42.49,43.40]]},
+  {id:"teide",name:"Teide",coords:[[-16.65,28.25],[-16.60,28.31]]},
+  {id:"snowdon",name:"Snowdon (Yr Wyddfa)",coords:[[-4.09,53.05],[-4.05,53.10]]}
+];
+const RIVERS=[
+  {id:"nil",name:"Nil",coords:[[31.5,30.5],[32.4,24.1],[32.9,15.6],[31.5,9.5]]},
+  {id:"amazonas",name:"Amazonas",coords:[[-50,-0.5],[-55,-2.5],[-60,-3.3],[-67,-4],[-73,-6]]},
+  {id:"mississippi",name:"Mississippi",coords:[[-89.2,29.1],[-90.1,32.3],[-91,38],[-90.2,42],[-93,45],[-95,47.2]]},
+  {id:"yangtze",name:"Jangtsekiang",coords:[[121.8,31.4],[114,30.6],[107,30.8],[100,28],[97,33]]},
+  {id:"rhein",name:"Rhein",coords:[[4.1,51.9],[6.1,51.8],[7.6,50.4],[8.3,49],[7.6,47.6]]},
+  {id:"donau",name:"Donau",coords:[[8.2,48],[11.6,48.9],[16.4,48.1],[19,47.5],[21,45],[28.7,45.2]]},
+  {id:"wolga",name:"Wolga",coords:[[47.9,45.8],[48.3,48.7],[45.2,51.6],[44.5,55.5],[37.9,57.9]]},
+  {id:"ganges",name:"Ganges",coords:[[88,22],[87,24],[83,25.3],[80,26.5],[78,30]]},
+  {id:"kongo",name:"Kongo",coords:[[12.4,-6],[15,-4],[20,-2],[25,0],[27,-4]]},
+  {id:"niger",name:"Niger",coords:[[6.4,4.3],[5,8],[3,12],[-4,14],[-8,12]]},
+  {id:"mekong",name:"Mekong",coords:[[106.7,10.5],[105,12],[104,15],[101,20],[98,24],[97,33]]},
+  {id:"murray",name:"Murray",coords:[[139,-35.5],[143,-34],[147,-35],[148,-36]]},
+  {id:"elbe",name:"Elbe",coords:[[8.9,53.9],[10,53.1],[11.6,53.0],[12.2,52.0],[14.4,51.6],[14.0,50.7]]},
+  {id:"main",name:"Main",coords:[[8.3,50.0],[9.1,50.0],[10.2,50.0],[10.9,49.9],[11.9,49.9]]},
+  {id:"mosel",name:"Mosel",coords:[[7.6,50.37],[7.1,49.9],[6.6,49.6],[6.15,49.1]]},
+  {id:"weser",name:"Weser",coords:[[8.5,53.5],[8.7,52.9],[9.1,52.4],[9.4,52.0],[9.65,51.6]]},
+  {id:"oder",name:"Oder",coords:[[14.3,53.9],[14.6,52.6],[15.0,51.6],[17.0,50.6],[18.3,49.7]]},
+  {id:"spree",name:"Spree",coords:[[13.57,52.5],[14.0,52.0],[14.3,51.6],[14.6,51.0]]},
+  {id:"rhone",name:"Rhône",coords:[[4.85,43.3],[4.8,44.5],[5.6,45.6],[6.15,46.2]]},
+  {id:"seine",name:"Seine",coords:[[0.2,49.4],[1.5,49.4],[2.5,48.9],[3.6,48.5]]},
+  {id:"themse",name:"Themse",coords:[[0.7,51.5],[0.0,51.5],[-0.8,51.5],[-1.7,51.7]]},
+  {id:"po",name:"Po",coords:[[12.3,44.95],[11.5,45.0],[10.0,45.05],[8.5,45.05],[7.7,44.9]]},
+  {id:"tejo",name:"Tejo",coords:[[-9.2,38.7],[-8.0,39.0],[-6.0,39.6],[-4.0,40.0]]},
+  {id:"ebro",name:"Ebro",coords:[[0.86,40.72],[0.0,41.4],[-1.5,42.0],[-3.5,42.8]]},
+  {id:"don",name:"Don",coords:[[39.3,47.1],[40.2,48.8],[41.2,50.5],[40.0,52.0],[39.2,53.8]]},
+  {id:"dnepr",name:"Dnepr",coords:[[31.5,46.5],[33.0,48.0],[31.0,50.0],[30.5,52.0],[31.5,54.0]]},
+  {id:"jenissei",name:"Jenissei",coords:[[82,71],[86,66],[90,60],[92,55],[94,52]]},
+  {id:"ob",name:"Ob",coords:[[68,66],[70,62],[73,58],[78,54],[82,52]]},
+  {id:"lena",name:"Lena",coords:[[126,72],[124,68],[120,62],[112,58],[108,54]]},
+  {id:"huanghe",name:"Gelber Fluss (Huang He)",coords:[[118.5,38],[114,36],[110,38],[104,36],[100,35],[96,35]]},
+  {id:"indus",name:"Indus",coords:[[67.5,24],[68,27],[71,30],[73,33],[76,35]]},
+  {id:"brahmaputra",name:"Brahmaputra",coords:[[90.5,22.5],[90,25],[92,27],[95,28],[92,30]]},
+  {id:"euphrat",name:"Euphrat",coords:[[47.5,30],[46,32],[42,35],[39,37],[38,39]]},
+  {id:"tigris",name:"Tigris",coords:[[47.5,30],[46,31.5],[44,34],[42,37],[40,38]]},
+  {id:"missouri",name:"Missouri",coords:[[-90.2,38.8],[-92,40],[-95,41],[-100,44],[-104,47],[-110,46]]},
+  {id:"colorado",name:"Colorado",coords:[[-114.7,32],[-114,34],[-112,36],[-110,38],[-108,40]]},
+  {id:"saofrancisco",name:"São Francisco",coords:[[-36.4,-10.5],[-38,-9],[-40,-12],[-44,-16],[-45,-20]]},
+  {id:"parana",name:"Paraná",coords:[[-58.4,-34],[-58,-31],[-56,-27],[-54,-24],[-51,-20]]},
+  {id:"orinoco",name:"Orinoco",coords:[[-62,8.6],[-64,7.5],[-66,7],[-67,5],[-66,2]]},
+  {id:"stlorenz",name:"Sankt-Lorenz-Strom",coords:[[-69,48],[-72,47],[-74,45],[-76,44]]},
+  {id:"mackenzieflu",name:"Mackenzie (Fluss)",coords:[[135,69],[130,66],[125,63],[121,61]]},
+  {id:"yukon",name:"Yukon",coords:[[-164,62.5],[-160,63],[-155,64],[-148,65],[-140,63]]},
+  {id:"sambesi",name:"Sambesi",coords:[[36.3,-18.5],[34,-16],[30,-16],[26,-17],[24,-15]]}
+];
+const mFeatures=MOUNTAINS.map(m=>({id:m.id,name:m.name,type:"mtn",geo:{type:"LineString",coordinates:m.coords}}));
+const rFeatures=RIVERS.map(r=>({id:r.id,name:r.name,type:"river",geo:{type:"LineString",coordinates:r.coords}}));
+function mtnName(id){ const m=MOUNTAINS.find(x=>x.id===id); return m?m.name:id; }
+function riverName(id){ const r=RIVERS.find(x=>x.id===id); return r?r.name:id; }
+
+let state=load();
+let currentUserId=null, showAll=false, geo=null;
+let viewMode="globe", panMoved=false, longPressed=false, dragBehavior=null, zoomBehavior=null;
+let svg,mapNode,gMap,projection,pathGen,graticule,countrySel,sphereSel,gratSel;
+let riverLayer,mtnLayer,riverSel,mtnSel,riverHit,mtnHit,reliefLayer,reliefWide,reliefCore;
+let peakLayer,peakDot,peakHit,currentMapK=1;
+
+/* ---------- storage ---------- */
+function load(){
+  try{ const s=JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.users) return s; }catch(e){}
+  return {users:[{id:uid(),name:"Emil",color:COLORS[0],pass:""},{id:uid(),name:"Lasse",color:COLORS[1],pass:""}],data:{}};
+}
+function save(){
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }
+  catch(e){ alert("Speicher voll – evtl. zu viele/zu große Fotos. Letzte Änderung wurde nicht gespeichert."); }
+}
+function uid(){ return "u"+Math.random().toString(36).slice(2,9); }
+function userData(id){
+  if(!state.data[id]) state.data[id]={};
+  const d=state.data[id];
+  d.countries=d.countries||{}; d.cities=d.cities||[];
+  d.waters=d.waters||{}; d.mountains=d.mountains||{};      // angeklickte Karten-Objekte
+  d.waterCustom=d.waterCustom||[]; d.mtnCustom=d.mtnCustom||[]; // eigene Einträge
+  d.info=d.info||{};
+  return d;
+}
+function counts(id){ const d=userData(id); return {
+  countries:Object.keys(d.countries).length,
+  cities:d.cities.length,
+  waters:Object.keys(d.waters).length+d.waterCustom.length,
+  mountains:Object.keys(d.mountains).length+d.mtnCustom.length
+}; }
+function userById(id){ return state.users.find(u=>u.id===id); }
+
+/* ---------- login ---------- */
+const $=s=>document.querySelector(s);
+const loginEl=$("#login");
+
+function renderLogin(){
+  const list=$("#userlist"); list.innerHTML="";
+  state.users.forEach(u=>{
+    const c=counts(u.id);
+    const row=document.createElement("div"); row.style.display="flex"; row.style.gap="8px"; row.style.alignItems="center";
+    const b=document.createElement("button");
+    b.className="user-pick";
+    b.innerHTML=`<span class="swatch" style="background:${u.color}"></span><span class="nm">${esc(u.name)} ${u.pass?'🔒':''}</span><span class="meta">${c.countries} Länder</span>`;
+    b.onclick=()=>pickUser(u.id);
+    const edit=document.createElement("button"); edit.className="iconbtn"; edit.textContent="✏️"; edit.title="Bearbeiten"; edit.onclick=()=>openPersonEdit(u.id);
+    row.appendChild(b); row.appendChild(edit);
+    list.appendChild(row);
+  });
+  const cg=$("#colorgrid"); cg.innerHTML="";
+  const used=new Set(state.users.map(u=>u.color));
+  const free=COLORS.filter(c=>!used.has(c));
+  (free.length?free:COLORS).forEach((c,i)=>{
+    cg.insertAdjacentHTML("beforeend",`<label><input type="radio" name="newcol" value="${c}" ${i===0?'checked':''}><span class="c" style="background:${c}"></span></label>`);
+  });
+}
+function pickUser(id){
+  const u=userById(id);
+  if(u.pass){ openPasswordPrompt(u,()=>{ currentUserId=id; enterLobby(); }); }
+  else { currentUserId=id; enterLobby(); }
+}
+function openPasswordPrompt(u,onok){
+  openModal(`
+    <h2><span class="swatch" style="background:${u.color}"></span> ${esc(u.name)} <span style="margin-left:auto;font-size:16px">🔒</span></h2>
+    <div class="field"><label>Passwort eingeben</label>
+      <input type="password" id="pwInput" autocomplete="current-password" placeholder="Passwort">
+      <div id="pwErr" class="small" style="color:#e54b4b;display:none;margin-top:6px">Falsches Passwort, versuch es nochmal.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="pwCancel">Abbrechen</button>
+      <button class="btn" id="pwOk">Anmelden</button>
+    </div>`);
+  const inp=$("#pwInput"); setTimeout(()=>inp&&inp.focus(),60);
+  const submit=()=>{ if(inp.value===u.pass){ closeModal(); onok(); } else { $("#pwErr").style.display="block"; inp.value=""; inp.focus(); } };
+  $("#pwOk").onclick=submit;
+  $("#pwCancel").onclick=closeModal;
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+}
+$("#addUserBtn").onclick=()=>{
+  const name=$("#newName").value.trim(); if(!name){ $("#newName").focus(); return; }
+  const color=(document.querySelector('input[name=newcol]:checked')||{}).value||COLORS[0];
+  state.users.push({id:uid(),name,color,pass:$("#newPass").value}); save();
+  $("#newName").value=""; $("#newPass").value=""; renderLogin();
+};
+
+/* ---------- person bearbeiten / löschen ---------- */
+function openPersonEdit(id){
+  const u=userById(id);
+  const colors=COLORS.map(c=>`<label><input type="radio" name="ecol" value="${c}" ${c===u.color?'checked':''}><span class="c" style="background:${c}"></span></label>`).join("");
+  openModal(`
+    <h2>✏️ Person bearbeiten</h2>
+    <div class="field"><label>Name</label><input type="text" id="eName" value="${esc(u.name)}" maxlength="24"></div>
+    <div class="field"><label>Farbe</label><div class="colorgrid">${colors}</div></div>
+    <div class="field"><label>Passwort ${u.pass?'(neues setzen oder leer lassen)':'(optional)'}</label><input type="password" id="ePass" placeholder="${u.pass?'•••• unverändert':'kein Passwort'}">
+      ${u.pass?'<div class="checkrow" style="margin-top:8px"><input type="checkbox" id="ePassDel"><span>Passwort entfernen</span></div>':''}</div>
+    <div class="modal-actions">
+      <button class="btn danger" id="eDelete">🗑️ Löschen</button>
+      <span class="grow"></span>
+      <button class="btn ghost" id="eCancel">Abbrechen</button>
+      <button class="btn" id="eSave">Speichern</button>
+    </div>`);
+  $("#eCancel").onclick=closeModal;
+  $("#eSave").onclick=()=>{
+    const nm=$("#eName").value.trim(); if(!nm){ $("#eName").focus(); return; }
+    u.name=nm;
+    u.color=(document.querySelector('input[name=ecol]:checked')||{}).value||u.color;
+    const np=$("#ePass").value;
+    if($("#ePassDel")&&$("#ePassDel").checked) u.pass="";
+    else if(np) u.pass=np;
+    save(); closeModal();
+    renderLogin();
+    if(currentUserId===u.id){ $("#meSwatch").style.background=u.color; $("#meName").textContent=u.name; updateFills(); renderPanel(); }
+  };
+  $("#eDelete").onclick=()=>{
+    if(state.users.length<=1){ alert("Es muss mindestens eine Person geben."); return; }
+    if(!confirm(`„${u.name}“ wirklich löschen? Alle Markierungen und Infos dieser Person gehen verloren.`)) return;
+    state.users=state.users.filter(x=>x.id!==u.id); delete state.data[u.id]; save();
+    if(currentUserId===u.id){ closeModal(); $("#switchUser").click(); renderLogin(); return; }
+    closeModal(); renderLogin();
+  };
+}
+
+/* ---------- lobby ---------- */
+function enterLobby(){
+  loginEl.style.display="none"; $("#topbar").style.display="flex"; $("#mapwrap").style.display="block";
+  const u=userById(currentUserId); $("#meSwatch").style.background=u.color; $("#meName").textContent=u.name;
+  if(!geo) initMap(); else updateFills();
+  renderPanel();
+}
+$("#switchUser").onclick=()=>{
+  $("#topbar").style.display="none"; $("#mapwrap").style.display="none"; $("#panel").classList.remove("open");
+  currentUserId=null; loginEl.style.display="flex"; renderLogin();
+};
+
+/* ---------- globe ---------- */
+const GEO_URLS=[
+  "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson",
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson"
+];
+let baseScale=1;
+
+/* ---------- Länder-Fakten (Hauptstadt, Einwohner, Sprachen, Flagge) ---------- */
+let FACTS={};
+const FACTS_URLS=[
+  "https://cdn.jsdelivr.net/gh/mledoze/countries@master/dist/countries.json",
+  "https://raw.githubusercontent.com/mledoze/countries/master/dist/countries.json"
+];
+async function loadFacts(){
+  let arr=null;
+  for(const url of FACTS_URLS){ try{ const r=await fetch(url); if(r.ok){ arr=await r.json(); break; } }catch(e){} }
+  if(!arr) return;
+  arr.forEach(c=>{
+    if(!c.cca3) return;
+    let cur="";
+    if(c.currencies){ const k=Object.keys(c.currencies)[0]; if(k){ const o=c.currencies[k]; cur=(o.name||k)+(o.symbol?` (${o.symbol})`:""); } }
+    FACTS[c.cca3]={
+      cca2:c.cca2||"",
+      capital:(c.capital&&c.capital[0])||"",
+      population:c.population||0,
+      languages:c.languages?Object.values(c.languages).join(", "):"",
+      currency:cur
+    };
+  });
+}
+function flagEmoji(cc){ if(!cc||cc.length!==2||cc.includes("-")) return ""; try{ return String.fromCodePoint(...[...cc.toUpperCase()].map(ch=>0x1F1E6+ch.charCodeAt(0)-65)); }catch(e){ return ""; } }
+function factsFor(d){
+  const p=d.properties||{};
+  const f=FACTS[d.id]||{};
+  const cca2=f.cca2||p.ISO_A2_EH||p.ISO_A2||"";
+  const pop=f.population||p.POP_EST||0;
+  return {
+    flag:flagEmoji(cca2),
+    capital:f.capital||"",
+    population:pop>0?pop:null,
+    languages:f.languages||"",
+    currency:f.currency||""
+  };
+}
+function fmtNum(n){ try{ return new Intl.NumberFormat("de-DE").format(Math.round(n)); }catch(e){ return ""+n; } }
+
+/* ---------- Auswertungen: Kontinente / Weltabdeckung / Chronik (Block 7) ---------- */
+let CONTI=null;            // { Kontinent(EN): [alle countryId,...] } – Antarktis & offenes Meer ausgeschlossen
+let CONTI_OFFICIAL=null;   // { Kontinent(EN): [nur OFFICIAL-countryId,...] } – Soll-Menge für Vollständigkeit
+const CONTI_DE={ "Africa":"Afrika","Asia":"Asien","Europe":"Europa","North America":"Nordamerika","South America":"Südamerika","Oceania":"Ozeanien" };
+function buildContinents(){
+  CONTI={}; CONTI_OFFICIAL={};
+  OFFICIAL_GEO=new Set([...OFFICIAL].map(officialAsGeoId));
+  geo.features.forEach(f=>{ const cRaw=(f.properties&&f.properties.CONTINENT)||"?";
+    const c=(cRaw==="Antarctica"||cRaw==="Seven seas (open ocean)"||cRaw==="?")?null:cRaw;
+    if(c) (CONTI[c]=CONTI[c]||[]).push(f.id);
+    if(OFFICIAL_GEO.has(f.id)){ const oc=CONTI_FIX[f.id]||c; if(oc) (CONTI_OFFICIAL[oc]=CONTI_OFFICIAL[oc]||[]).push(f.id); }
+  });
+  // Validierung: welche offiziellen Codes kommen nicht als Karten-ID vor? (nur warnen, nicht abbrechen)
+  const present=new Set(geo.features.map(f=>f.id));
+  const missing=[...OFFICIAL_GEO].filter(id=>!present.has(id));
+  if(missing.length) console.warn(`[OFFICIAL] ${missing.length} von ${OFFICIAL.size} Staaten nicht als Karten-ID (ADM0_A3) gefunden:`, missing.join(", "));
+}
+function isOfficialVisited(visited){ return Object.keys(visited).filter(id=>OFFICIAL_GEO&&OFFICIAL_GEO.has(id)).length; }
+function coverageStats(uid){ const visited=userData(uid).countries;
+  const visOff=isOfficialVisited(visited);
+  const pct=Math.min(100,Math.round(visOff/OFFICIAL.size*100));   // Nenner: OFFICIAL.size (195)
+  const per=[]; let touched=0, complete=0;
+  if(CONTI_OFFICIAL){ for(const cont in CONTI_OFFICIAL){ const ids=CONTI_OFFICIAL[cont]; const vis=ids.filter(id=>visited[id]).length;
+    per.push({cont,de:CONTI_DE[cont]||cont,vis,total:ids.length}); if(vis>0) touched++; if(vis===ids.length&&ids.length) complete++; } }
+  per.sort((a,b)=> (b.vis/b.total)-(a.vis/a.total) || a.de.localeCompare(b.de));
+  return {pct, per, touched, totalCont:Object.keys(CONTI_OFFICIAL||{}).length, complete, visOff, official:OFFICIAL.size};
+}
+// freitext-Datum grob chronologisch sortierbar machen (Jahr + evtl. Monat)
+function dateSortKey(s){ const low=String(s).toLowerCase();
+  const y=(low.match(/(19|20)\d{2}/)||[])[0]; if(!y) return Infinity;
+  const months={"jänner":1,januar:1,februar:2,"märz":3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
+  let m=0; for(const k in months){ if(low.includes(k)){ m=months[k]; break; } }
+  if(!m){ const mm=low.match(/\b(\d{1,2})[.\/]\s*(?:19|20)\d{2}/); if(mm) m=+mm[1]; }
+  return (+y)*12 + (m||0);
+}
+function chronicle(uid){ const info=userData(uid).info, out=[];
+  for(const id in info){ const rec=info[id]; if(rec && rec.date){ out.push({id, name:geoName(id), date:rec.date, notes:rec.notes||"", photos:(rec.photos||[]).length, key:dateSortKey(rec.date)}); } }
+  out.sort((a,b)=>a.key-b.key); return out;
+}
+
+/* Sternenhimmel laden: zuerst eigene Datei, sonst das mitgelieferte stars.svg, sonst CSS-Fallback */
+function probeImage(cands,onok,onfail){ let i=0; (function next(){ if(i>=cands.length){ onfail&&onfail(); return; } const im=new Image(); im.onload=()=>onok(cands[i]); im.onerror=()=>{ i++; next(); }; im.src=cands[i]; })(); }
+function initSpaceBackground(){
+  probeImage(["assets/stars.jpg","assets/stars.jpeg","assets/stars.png","assets/stars.webp","assets/stars.svg"],
+    (url)=>{ const s=$("#space"); s.classList.remove("fallback"); s.style.backgroundImage=`url("${url}")`; });
+}
+
+async function initMap(){
+  let data=null;
+  for(const url of GEO_URLS){ try{ const r=await fetch(url); if(r.ok){ data=await r.json(); break; } }catch(e){} }
+  if(!data){ $("#loading").innerHTML="Erde konnte nicht geladen werden.<br>Bitte einmal mit Internet öffnen."; return; }
+  data.features.forEach((f,i)=>{ const p=f.properties||{}; f.id=p.ADM0_A3||p.ISO_A3_EH||p.ISO_A3||p.ADMIN||("f"+i); });
+  geo=data; $("#loading").style.display="none";
+  buildContinents();   // Kontinent-Zuordnung aus den Karten-Eigenschaften
+  loadFacts(); // im Hintergrund (blockiert die Karte nicht)
+
+  const wrap=$("#mapwrap"); const W=wrap.clientWidth,H=wrap.clientHeight;
+  svg=d3.select("#map").attr("viewBox",`0 0 ${W} ${H}`); mapNode=svg.node();
+  graticule=d3.geoGraticule10();
+
+  projection=d3.geoOrthographic().rotate([-10,-51]).fitExtent([[24,24],[W-24,H-24]],{type:"Sphere"});
+  baseScale=projection.scale();
+  pathGen=d3.geoPath(projection);
+
+  { const [tx,ty]=projection.translate(); svg.append("circle").attr("class","glow").attr("cx",tx).attr("cy",ty).attr("r",baseScale+3).attr("id","glowC"); }
+  gMap=svg.append("g");
+  sphereSel=gMap.append("path").attr("class","sphere");
+  gratSel=gMap.append("path").attr("class","graticule");
+  countrySel=gMap.selectAll("path.country").data(geo.features).enter().append("path")
+    .attr("class","country").attr("data-id",d=>d.id)
+    .on("mousemove",(ev,d)=>showTip(ev,d)).on("mouseleave",hideTip)
+    .on("click",(ev,d)=>{ if(viewMode!=="map"||panMoved||longPressed) return; toggleCountry(d); })
+    .on("contextmenu",(ev,d)=>{ ev.preventDefault(); hideTip(); openCountryInfo(d); });
+
+  // Gebirgs-Relief (nur 2D, Atlas-Look: braune Höhenandeutung unter den Linien)
+  reliefLayer=gMap.append("g").attr("id","reliefLayer");
+  reliefWide=reliefLayer.selectAll("path.wide").data(mFeatures).enter().append("path").attr("class","relief wide");
+  reliefCore=reliefLayer.selectAll("path.core").data(mFeatures).enter().append("path").attr("class","relief core");
+
+  // Flüsse (nur 2D) – breite transparente Trefferlinie + sichtbare Linie
+  riverLayer=gMap.append("g").attr("id","riverLayer");
+  riverSel=riverLayer.selectAll("path.river").data(rFeatures).enter().append("path").attr("class","river");
+  riverHit=riverLayer.selectAll("path.hit").data(rFeatures).enter().append("path").attr("class","hit")
+    .on("mousemove",(ev,d)=>showFeatTip(ev,d,"🌊")).on("mouseleave",hideTip)
+    .on("click",(ev,d)=>{ if(viewMode!=="map"||panMoved||longPressed) return; toggleRiver(d); });
+
+  // Gebirge (nur 2D)
+  mtnLayer=gMap.append("g").attr("id","mtnLayer");
+  mtnSel=mtnLayer.selectAll("path.mtn").data(mFeatures).enter().append("path").attr("class","mtn");
+  mtnHit=mtnLayer.selectAll("path.hit").data(mFeatures).enter().append("path").attr("class","hit")
+    .on("mousemove",(ev,d)=>showFeatTip(ev,d,"⛰️")).on("mouseleave",hideTip)
+    .on("click",(ev,d)=>{ if(viewMode!=="map"||panMoved||longPressed) return; toggleMountain(d); });
+
+  // Einzelgipfel (2-Punkt-Linien) zusätzlich als Punkte mit festem Trefferradius (nur 2D)
+  const peakFeatures=mFeatures.filter(f=>f.geo.coordinates.length===2);
+  peakLayer=gMap.append("g").attr("id","peakLayer");
+  peakDot=peakLayer.selectAll("circle.peakdot").data(peakFeatures).enter().append("circle").attr("class","peakdot").attr("r",6);
+  peakHit=peakLayer.selectAll("circle.peakhit").data(peakFeatures).enter().append("circle").attr("class","peakhit").attr("r",15)
+    .on("mousemove",(ev,d)=>showFeatTip(ev,d,"⛰️")).on("mouseleave",hideTip)
+    .on("click",(ev,d)=>{ if(viewMode!=="map"||panMoved||longPressed) return; toggleMountain(d); });
+
+  // Globus-Interaktion: ziehen dreht, ohne Bewegung = Klick = markieren
+  let moved=0;
+  dragBehavior=d3.drag()
+    .on("start",()=>{ moved=0; longPressed=false; svg.classed("grabbing",true); hideTip(); })
+    .on("drag",(ev)=>{ moved+=Math.abs(ev.dx)+Math.abs(ev.dy);
+      const r=projection.rotate(); const k=70/projection.scale();
+      projection.rotate([r[0]+ev.dx*k, clampLat(r[1]-ev.dy*k)]); scheduleRender(); })
+    .on("end",(ev)=>{ svg.classed("grabbing",false);
+      if(longPressed){ longPressed=false; return; }   // Long-Press hat Info geöffnet, nicht markieren
+      if(moved<5){ const pt=d3.pointer(ev.sourceEvent,mapNode); const c=projection.invert(pt);
+        if(c){ const f=geo.features.find(ft=>d3.geoContains(ft,c)); if(f) toggleCountry(f); } } });
+
+  // Long-Press (Touch & Maus halten): öffnet Land-Infos in beiden Ansichten, ohne zu markieren
+  let lpTimer=null, lpStart=null;
+  mapNode.addEventListener("pointerdown",ev=>{
+    longPressed=false;
+    if(ev.button && ev.button!==0) return;
+    if($("#modal").classList.contains("open")) return;
+    lpStart=[ev.clientX,ev.clientY]; clearTimeout(lpTimer);
+    lpTimer=setTimeout(()=>{ const pt=d3.pointer(ev,mapNode); const c=projection.invert(pt);
+      const f=c && geo.features.find(ft=>d3.geoContains(ft,c));
+      if(f){ longPressed=true; hideTip(); openCountryInfo(f); } },550);
+  });
+  mapNode.addEventListener("pointermove",ev=>{ if(lpStart && (Math.abs(ev.clientX-lpStart[0])+Math.abs(ev.clientY-lpStart[1])>8)){ clearTimeout(lpTimer); lpTimer=null; } });
+  const lpEnd=()=>{ clearTimeout(lpTimer); lpTimer=null; lpStart=null; };
+  mapNode.addEventListener("pointerup",lpEnd);
+  mapNode.addEventListener("pointercancel",lpEnd);
+  mapNode.addEventListener("pointerleave",lpEnd);
+
+  window.addEventListener("resize",()=>{ setViewMode(viewMode); });
+
+  setViewMode("globe");
+  updateFills();
+}
+function clampLat(p){ return Math.max(-90,Math.min(90,p)); }
+
+/* ---------- Ansicht: Globus <-> 2D-Karte ---------- */
+function enableGlobe(){
+  svg.on(".zoom",null); zoomBehavior=null;
+  gMap.attr("transform",null);
+  svg.style("cursor","grab").call(dragBehavior);
+  svg.on("wheel.g",(ev)=>{ ev.preventDefault(); const s=projection.scale();
+    const ns=Math.max(baseScale*0.7,Math.min(baseScale*7,s*(ev.deltaY<0?1.12:1/1.12)));
+    projection.scale(ns); scheduleRender(); },{passive:false});
+}
+function enableMap(){
+  svg.on(".drag",null); svg.on("wheel.g",null); svg.classed("grabbing",false).style("cursor","grab");
+  const wrap=$("#mapwrap"), W=wrap.clientWidth, H=wrap.clientHeight;
+  zoomBehavior=d3.zoom().scaleExtent([1,14])
+    .extent([[0,0],[W,H]]).translateExtent([[0,0],[W,H]])   // Karte bleibt immer im Bild
+    .on("start",()=>{ panMoved=false; longPressed=false; hideTip(); })
+    .on("zoom",(ev)=>{ if(ev.sourceEvent&&ev.sourceEvent.type==="mousemove") panMoved=true; gMap.attr("transform",ev.transform);
+      currentMapK=ev.transform.k; if(peakDot){ peakDot.attr("r",6/currentMapK); peakHit.attr("r",15/currentMapK); } });
+  currentMapK=1;
+  svg.call(zoomBehavior).call(zoomBehavior.transform,d3.zoomIdentity);
+}
+function setViewMode(mode){
+  if(!svg) return;
+  viewMode=mode;
+  const wrap=$("#mapwrap"), W=wrap.clientWidth, H=wrap.clientHeight;
+  svg.attr("viewBox",`0 0 ${W} ${H}`);
+  if(mode==="globe"){
+    projection=d3.geoOrthographic().rotate([-10,-51]).fitExtent([[24,24],[W-24,H-24]],{type:"Sphere"});
+    pathGen=d3.geoPath(projection); baseScale=projection.scale();
+    d3.select("#glowC").style("display",null);
+    svg.classed("atlas",false);
+    $("#space").style.display="";                 // Sternenhimmel zeigen
+    reliefLayer.style("display","none"); riverLayer.style("display","none"); mtnLayer.style("display","none"); peakLayer.style("display","none");
+    enableGlobe();
+    $("#hint").innerHTML=`<b>Ziehen</b> = Globus drehen · <b>Linksklick</b> = Land markieren · <b>Rechtsklick</b> = Infos &amp; Fotos · scrollen zoomt`;
+  } else {
+    projection=d3.geoNaturalEarth1().fitExtent([[12,12],[W-12,H-12]],{type:"Sphere"});
+    pathGen=d3.geoPath(projection); baseScale=projection.scale();
+    d3.select("#glowC").style("display","none");
+    svg.classed("atlas",true);
+    $("#space").style.display="none";             // Sternenhimmel in der 2D-Karte aus
+    reliefLayer.style("display",null); riverLayer.style("display",null); mtnLayer.style("display",null); peakLayer.style("display",null);
+    enableMap();
+    $("#hint").innerHTML=`<b>Ziehen</b> = verschieben · <b>Linksklick</b> = Land / Gebirge / Fluss markieren · <b>Rechtsklick</b> = Land-Infos · scrollen zoomt`;
+  }
+  $("#toggleView").innerHTML = mode==="globe" ? '🗺️ <span class="lbl">Karte</span>' : '🌍 <span class="lbl">Globus</span>';
+  renderGeom(); updateFills();
+}
+
+let rafId=null;
+function scheduleRender(){ if(rafId) return; rafId=requestAnimationFrame(()=>{ rafId=null; renderGeom(); }); }
+function renderGeom(){
+  if(!pathGen) return;
+  sphereSel.attr("d",pathGen({type:"Sphere"}));
+  gratSel.attr("d",pathGen(graticule));
+  countrySel.attr("d",pathGen);
+  if(riverSel){ const dg=f=>pathGen(f.geo);
+    reliefWide.attr("d",dg); reliefCore.attr("d",dg);
+    riverSel.attr("d",dg); riverHit.attr("d",dg); mtnSel.attr("d",dg); mtnHit.attr("d",dg); }
+  if(peakDot && viewMode==="map"){ const k=currentMapK||1, rd=6/k, rh=15/k;
+    const xy=f=>{ const c=f.geo.coordinates; return projection([(c[0][0]+c[1][0])/2,(c[0][1]+c[1][1])/2]); };
+    peakDot.attr("cx",f=>xy(f)[0]).attr("cy",f=>xy(f)[1]).attr("r",rd);
+    peakHit.attr("cx",f=>xy(f)[0]).attr("cy",f=>xy(f)[1]).attr("r",rh); }
+  if(viewMode==="globe"){ const [tx,ty]=projection.translate(); d3.select("#glowC").attr("cx",tx).attr("cy",ty).attr("r",projection.scale()+3); }
+}
+function updateFills(){
+  if(!countrySel) return;
+  const me=userById(currentUserId), dd=userData(currentUserId);
+  const landDefault = viewMode==="map" ? "#cfe3a8" : "var(--land)";  // Karte: Atlas-Grün · Globus: weiß
+  countrySel.style("fill",d=>{
+    if(d.id===homeId()) return HOME_COLOR;                 // Heimatland immer Gold
+    if(dd.countries[d.id]) return me.color;
+    if(showAll){ const v=visitorsOf(d.id);
+      if(v.length===1) return d3.color(v[0].color).copy({opacity:.55})+"";
+      if(v.length>1) return "#c2ccd6"; }
+    return landDefault;
+  });
+  if(riverSel){
+    const wVis=id=>state.users.filter(u=>userData(u.id).waters[id]);
+    const mVis=id=>state.users.filter(u=>userData(u.id).mountains[id]);
+    // Fluss behält seine blaue Farbe (sonst unsichtbar auf markiertem Land), wird nur dicker + leuchtet.
+    // "Alle anzeigen": Fluss leuchtet auch, wenn ihn irgendwer markiert hat.
+    riverSel.classed("on",f=> dd.waters[f.id] || (showAll && wVis(f.id).length>0));
+    // Gebirge: in Spielerfarbe; bei "Alle anzeigen" in der Farbe der ersten Person, die es markiert hat.
+    const mtnStroke=f=>{ if(dd.mountains[f.id]) return me.color; if(showAll){ const v=mVis(f.id); if(v.length) return v[0].color; } return null; };
+    mtnSel.classed("on",f=> dd.mountains[f.id] || (showAll && mVis(f.id).length>0)).style("stroke",mtnStroke);
+    if(peakDot) peakDot.style("fill",f=>{ if(dd.mountains[f.id]) return me.color; if(showAll){ const v=mVis(f.id); if(v.length) return v[0].color; } return "#7a4f24"; });
+  }
+}
+function countryName(d){ const p=d.properties||{}; return p.NAME_DE||p.NAME||p.NAME_LONG||p.ADMIN||p.name||d.id; }
+function visitorsOf(id){ return state.users.filter(u=>userData(u.id).countries[id]); }
+function toggleCountry(d){ const cs=userData(currentUserId).countries; if(cs[d.id]) delete cs[d.id]; else cs[d.id]=true; save(); updateFills(); renderPanel(); }
+function toggleRiver(f){ const w=userData(currentUserId).waters; if(w[f.id]) delete w[f.id]; else w[f.id]=true; save(); updateFills(); renderPanel(); }
+function toggleMountain(f){ const m=userData(currentUserId).mountains; if(m[f.id]) delete m[f.id]; else m[f.id]=true; save(); updateFills(); renderPanel(); }
+
+/* tooltip */
+const tip=$("#tooltip");
+function showTip(ev,d){
+  const v=visitorsOf(d.id); const home=d.id===homeId(); const fa=factsFor(d);
+  let html=`<b>${fa.flag?fa.flag+" ":""}${esc(countryName(d))}</b>`;
+  if(fa.capital) html+=`<br><span style="opacity:.8">🏛️ ${esc(fa.capital)}</span>`;
+  if(home) html+=` 🏠`;
+  if(home) html+=`<br><span style="color:${HOME_COLOR}">●</span> Heimatland`;
+  if(v.length) html+="<br>"+v.map(u=>`<span style="color:${u.color}">●</span> ${esc(u.name)}`).join("<br>");
+  else if(!home) html+=`<br><span style="opacity:.7">noch nicht markiert</span>`;
+  tip.innerHTML=html; tip.style.display="block";
+  tip.style.left=(ev.clientX+14)+"px"; tip.style.top=(ev.clientY+14)+"px";
+}
+function hideTip(){ tip.style.display="none"; }
+function showFeatTip(ev,f,icon){
+  const dd=userData(currentUserId);
+  const on=f.type==="river"?dd.waters[f.id]:dd.mountains[f.id];
+  tip.innerHTML=`<b>${icon} ${esc(f.name)}</b><br><span style="opacity:.8">${on?'✓ markiert – klicken entfernt':'klicken zum Markieren'}</span>`;
+  tip.style.display="block"; tip.style.left=(ev.clientX+14)+"px"; tip.style.top=(ev.clientY+14)+"px";
+}
+
+$("#zin").onclick =()=>{ if(viewMode==="globe"){ projection.scale(Math.min(baseScale*7,projection.scale()*1.3)); renderGeom(); } else svg.transition().call(zoomBehavior.scaleBy,1.4); };
+$("#zout").onclick=()=>{ if(viewMode==="globe"){ projection.scale(Math.max(baseScale*0.7,projection.scale()/1.3)); renderGeom(); } else svg.transition().call(zoomBehavior.scaleBy,1/1.4); };
+$("#zreset").onclick=()=>{ setViewMode(viewMode); };
+$("#toggleView").onclick=()=>{ setViewMode(viewMode==="globe"?"map":"globe"); };
+/* "Alle anzeigen" wird über das ⋯-Menü gesteuert (data-act="all"). */
+
+/* ---------- Länder-Info-Fenster ---------- */
+let infoCountryId=null;
+function openCountryInfo(d){
+  const id=d.id; infoCountryId=id;
+  const d0=userData(currentUserId);
+  const info=d0.info[id]||{date:"",currency:"",notes:"",photos:[]};
+  const visited=!!d0.countries[id];
+  const home=id===homeId();
+  const fa=factsFor(d);
+  const factRows=[
+    fa.capital?`<div class="fact"><span class="fk">🏛️ Hauptstadt</span><span class="fv">${esc(fa.capital)}</span></div>`:"",
+    fa.population?`<div class="fact"><span class="fk">👥 Einwohner</span><span class="fv">${fmtNum(fa.population)}</span></div>`:"",
+    fa.languages?`<div class="fact"><span class="fk">🗣️ Sprachen</span><span class="fv">${esc(fa.languages)}</span></div>`:"",
+    fa.currency?`<div class="fact"><span class="fk">💶 Währung</span><span class="fv">${esc(fa.currency)}</span></div>`:""
+  ].filter(Boolean).join("");
+  openModal(`
+    <h2>${fa.flag?fa.flag+' ':(home?'🏠 ':'')}${esc(countryName(d))} ${home?'<span class="homechip">Heimatland</span>':''}</h2>
+    ${factRows?`<div class="factbox">${factRows}${Object.keys(FACTS).length?'':'<div class="small" style="margin-top:6px">Hauptstadt/Sprachen laden noch oder offline nicht verfügbar.</div>'}</div>`:`<div class="small" style="margin-bottom:14px">Länder-Fakten werden geladen (oder offline nicht verfügbar).</div>`}
+    <div class="checkrow"><input type="checkbox" id="iVisited" ${visited?'checked':''}><label for="iVisited" style="margin:0;font-weight:600">Ich war schon hier (auf der Karte markiert)</label></div>
+    <div class="row2">
+      <div class="field"><label>Wann warst du da?</label><input type="text" id="iDate" value="${esc(info.date||'')}" placeholder="z.B. Juli 2024"></div>
+      <div class="field"><label>Währung (eigene Notiz)</label><input type="text" id="iCur" value="${esc(info.currency||'')}" placeholder="${esc(fa.currency||'z.B. Euro (€)')}"></div>
+    </div>
+    <div class="field"><label>Notizen / Erlebnisse</label><textarea id="iNotes" placeholder="Was hast du erlebt?">${esc(info.notes||'')}</textarea></div>
+    <div class="field"><label>Fotos</label>
+      <input type="file" id="iPhotoInput" accept="image/*" multiple style="font-size:13px">
+      <div id="iPhotoWarn" class="small" style="display:none;color:#e54b4b;margin-top:6px"></div>
+      <div class="photos" id="iPhotos"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="iCancel">Schließen</button>
+      <button class="btn" id="iSave">Speichern</button>
+    </div>`);
+  // Foto-Arbeitskopie: photoIds = Referenzen (IDs in IndexedDB). Bilder werden async geladen.
+  let photoIds=(info.photos||[]).slice();
+  const orig=(info.photos||[]).slice();   // zum Aufräumen bei Abbrechen
+  async function drawPhotos(){
+    const box=$("#iPhotos"); if(!box) return;
+    const urls=await Promise.all(photoIds.map(getPhotoURL));
+    box.innerHTML=urls.map((src,i)=>`<div class="photo"><img src="${src}"><button data-p="${i}">✕</button></div>`).join("");
+    box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ photoIds.splice(+b.dataset.p,1); drawPhotos(); });
+  }
+  drawPhotos();
+  $("#iPhotoInput").onchange=async(e)=>{
+    const warn=$("#iPhotoWarn"); warn.style.display="none"; warn.textContent="";
+    const files=[...e.target.files]; e.target.value="";
+    if(idbUsable===false){   // beim Start als nicht nutzbar erkannt -> klare Meldung statt stillem Verschlucken
+      warn.textContent="Fotos können in diesem Browser nicht gespeichert werden (IndexedDB nicht verfügbar, z.B. privater Modus)."; warn.style.display="block"; return;
+    }
+    let failed=0;
+    for(const f of files){ try{ const url=await fileToThumb(f); const pid=photoId(); await pdbPut(pid,url); photoIds.push(pid); }catch(err){ failed++; } }
+    if(failed){ warn.textContent=`${failed} Foto(s) konnten nicht gespeichert werden (Speicher voll oder nicht verfügbar).`; warn.style.display="block"; }
+    drawPhotos();
+  };
+  $("#iCancel").onclick=()=>{ // neu hinzugefügte, nicht gespeicherte Fotos wieder entfernen
+    photoIds.filter(p=>!orig.includes(p) && !String(p).startsWith("data:")).forEach(pdbDel);
+    closeModal();
+  };
+  $("#iSave").onclick=()=>{
+    const dd=userData(currentUserId);
+    if($("#iVisited").checked) dd.countries[id]=true; else delete dd.countries[id];
+    const rec={date:$("#iDate").value.trim(),currency:$("#iCur").value.trim(),notes:$("#iNotes").value.trim(),photos:photoIds};
+    if(rec.date||rec.currency||rec.notes||rec.photos.length) dd.info[id]=rec; else delete dd.info[id];
+    // entfernte Fotos aus IndexedDB löschen
+    orig.filter(p=>!photoIds.includes(p) && !String(p).startsWith("data:")).forEach(pdbDel);
+    save(); updateFills(); renderPanel(); closeModal();
+  };
+}
+function fileToThumb(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onerror=rej;
+    fr.onload=()=>{ const img=new Image();
+      img.onload=()=>{ const max=900; const sc=Math.min(1,max/Math.max(img.width,img.height));
+        const cw=Math.round(img.width*sc),ch=Math.round(img.height*sc);
+        const c=document.createElement("canvas"); c.width=cw; c.height=ch;
+        c.getContext("2d").drawImage(img,0,0,cw,ch);
+        res(c.toDataURL("image/jpeg",0.72)); };
+      img.onerror=rej; img.src=fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- Fotos in IndexedDB ----------
+   Im state steht pro Foto nur noch eine ID; das Bild (dataURL) liegt in IndexedDB.
+   So bleibt localStorage klein und es gibt kein ~5-MB-Limit für Bilder.
+   getPhotoURL akzeptiert auch alte base64-Strings (Fallback während/vor der Migration). */
+const PDB_NAME="fmwPhotos", PDB_STORE="photos"; let _pdb=null;
+function photoDB(){ if(_pdb) return _pdb; _pdb=new Promise((res,rej)=>{ const r=indexedDB.open(PDB_NAME,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(PDB_STORE); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); return _pdb; }
+function pdbPut(id,val){ return photoDB().then(d=>new Promise((res,rej)=>{ const tx=d.transaction(PDB_STORE,"readwrite"); tx.objectStore(PDB_STORE).put(val,id); tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error); })); }
+function pdbGet(id){ return photoDB().then(d=>new Promise((res,rej)=>{ const tx=d.transaction(PDB_STORE,"readonly"); const q=tx.objectStore(PDB_STORE).get(id); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); })); }
+function pdbDel(id){ return photoDB().then(d=>new Promise((res)=>{ const tx=d.transaction(PDB_STORE,"readwrite"); tx.objectStore(PDB_STORE).delete(id); tx.oncomplete=()=>res(); })).catch(()=>{}); }
+function photoId(){ return "ph"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+/* Beim Start prüfen, ob IndexedDB wirklich nutzbar ist (öffnen + Testschreibvorgang).
+   idbUsable: null=unbekannt, true=ok, false=nicht verfügbar (z.B. privater Modus). */
+let idbUsable=null;
+async function checkIDB(){
+  try{ if(!("indexedDB" in window)) throw new Error("no idb");
+    await pdbPut("__idbtest__","ok"); const v=await pdbGet("__idbtest__"); await pdbDel("__idbtest__");
+    idbUsable = (v==="ok");
+  }catch(e){ idbUsable=false; console.warn("IndexedDB nicht nutzbar – Fotos können nicht gespeichert werden.", e); }
+}
+function getPhotoURL(ref){
+  if(typeof ref==="string" && ref.startsWith("data:")) return Promise.resolve(ref);
+  return pdbGet(ref).then(v=>v||"").catch(()=>"");
+}
+/* Alle referenzierten Fotos aus IndexedDB einsammeln (für Export) */
+async function collectPhotos(){ const out={};
+  for(const uid in state.data){ const info=(state.data[uid]||{}).info||{};
+    for(const cid in info){ for(const ref of (info[cid].photos||[])){
+      if(typeof ref==="string" && ref.startsWith("data:")) out[ref]=ref;
+      else { const v=await pdbGet(ref); if(v) out[ref]=v; } } } }
+  return out;
+}
+async function restorePhotos(map){ for(const id in map){ try{ await pdbPut(id,map[id]); }catch(e){} } }
+/* Einmalige Migration vorhandener base64-Fotos nach IndexedDB (ohne Datenverlust) */
+async function migratePhotos(){
+  if(state.photosMigrated) return;
+  let touched=false;
+  for(const uid in state.data){ const info=(state.data[uid]||{}).info||{};
+    for(const cid in info){ const rec=info[cid]; if(!rec||!Array.isArray(rec.photos)) continue;
+      const ids=[]; for(const ph of rec.photos){
+        if(typeof ph==="string" && ph.startsWith("data:")){ const id=photoId(); try{ await pdbPut(id,ph); ids.push(id); touched=true; }catch(e){ ids.push(ph); } }
+        else ids.push(ph); }
+      rec.photos=ids; } }
+  state.photosMigrated=true; save();
+  if(touched && currentUserId) renderPanel();
+}
+
+/* ---------- modal helpers ---------- */
+function openModal(html){ $("#modalBox").innerHTML=html; $("#modal").classList.add("open"); }
+function closeModal(){ $("#modal").classList.remove("open"); $("#modalBox").innerHTML=""; }
+$("#modal").addEventListener("mousedown",e=>{ if(e.target.id==="modal") closeModal(); });
+
+/* ---------- panel ---------- */
+let activeTab="me";
+$("#openPanel").onclick=()=>{ $("#panel").classList.add("open"); renderPanel(); };
+$("#closePanel").onclick=()=>$("#panel").classList.remove("open");
+document.querySelectorAll(".tabs button").forEach(b=>{ b.onclick=()=>{ activeTab=b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x===b)); renderPanel(); }; });
+
+function nextAchievement(cat,n){ const steps=LADDERS[cat].steps; let done=[],next=null,prev=0;
+  for(const [need,title] of steps){ if(n>=need){ done.push([need,title]); prev=need; } else { next=[need,title,prev]; break; } } return {done,next}; }
+
+function renderPanel(){ if(!currentUserId) return; const body=$("#panelBody");
+  body.innerHTML=activeTab==="me"?renderMe():renderFamily(); bindPanel(); }
+
+function renderMe(){
+  const u=userById(currentUserId),c=counts(currentUserId),d=userData(currentUserId);
+  let html=`<div class="card"><h3><span class="swatch" style="background:${u.color}"></span> ${esc(u.name)}</h3>
+    <div class="statgrid">
+      <div class="s"><div class="n">${c.countries}</div><div class="l">Länder</div></div>
+      <div class="s"><div class="n">${c.cities}</div><div class="l">Städte</div></div>
+      <div class="s"><div class="n">${c.waters}</div><div class="l">Gewässer</div></div>
+      <div class="s"><div class="n">${c.mountains}</div><div class="l">Gebirge</div></div>
+    </div></div>`;
+
+  // Weltabdeckung + Kontinent-Aufschlüsselung
+  const cs=coverageStats(currentUserId);
+  html+=`<div class="card"><h3>🌍 Weltabdeckung</h3>
+    <div class="cov"><div class="pct" style="color:${u.color}">${cs.pct}%</div><div class="small">${cs.visOff} von ${cs.official} anerkannten Staaten besucht${c.countries>cs.visOff?` · ${c.countries} Markierungen gesamt`:''}</div></div>
+    <div class="contbars">${cs.per.map(p=>`<div class="cb"><span class="lbl">${esc(p.de)}</span><span class="bar"><i style="width:${p.total?Math.round(p.vis/p.total*100):0}%;background:${u.color}"></i></span><span class="num">${p.vis}/${p.total}</span></div>`).join("")}</div></div>`;
+
+  html+=`<div class="card"><h3>🏆 Erfolge</h3>`;
+  for(const cat of ["countries","cities","waters","mountains"]){
+    const n=c[cat],L=LADDERS[cat],a=nextAchievement(cat,n);
+    html+=`<div class="ach"><div class="top"><span class="t">${L.icon} ${L.label}</span>`;
+    if(a.next){ const [need,title,prev]=a.next; const pct=Math.round(((n-prev)/(need-prev))*100);
+      html+=`<span class="v">${n}/${need}</span></div><div class="bar"><i style="width:${pct}%;background:${u.color}"></i></div><div class="next">Nächstes Ziel: <b>${esc(title)}</b> (${need})</div></div>`;
+    } else html+=`<span class="done">✓ Alles geschafft!</span></div><div class="bar"><i style="width:100%;background:${u.color}"></i></div></div>`;
+  }
+  // Neue Kontinent-Erfolge
+  html+=`<div class="ach"><div class="top"><span class="t">🌐 Alle Kontinente betreten</span><span class="v">${cs.touched}/${cs.totalCont}</span></div>
+    <div class="bar"><i style="width:${cs.totalCont?Math.round(cs.touched/cs.totalCont*100):0}%;background:${u.color}"></i></div>
+    ${cs.touched===cs.totalCont&&cs.totalCont?'<div class="done">✓ Alle Kontinente betreten!</div>':''}</div>`;
+  html+=`<div class="ach"><div class="top"><span class="t">🧩 Kontinente komplett</span><span class="v">${cs.complete}/${cs.totalCont}</span></div>
+    <div class="bar"><i style="width:${cs.totalCont?Math.round(cs.complete/cs.totalCont*100):0}%;background:${u.color}"></i></div>
+    <div class="next">Ein Kontinent gilt als komplett, wenn alle seine Länder besucht sind.</div></div>`;
+
+  let badges=[]; for(const cat of ["countries","cities","waters","mountains"]) nextAchievement(cat,counts(currentUserId)[cat]).done.forEach(([n,t])=>badges.push(`${LADDERS[cat].icon} ${esc(t)}`));
+  if(cs.touched===cs.totalCont&&cs.totalCont) badges.push("🌐 Alle Kontinente");
+  cs.per.filter(p=>p.vis===p.total&&p.total).forEach(p=>badges.push(`🧩 ${esc(p.de)} komplett`));
+  if(badges.length) html+=`<div class="chips" style="margin-top:6px">${badges.map(b=>`<span class="badgecount">${b}</span>`).join("")}</div>`;
+  html+=`</div>`;
+
+  const cn=Object.keys(d.countries);
+  html+=`<div class="card"><h3>🗺️ Markierte Länder (${cn.length})</h3>
+    <p class="small" style="margin:0">Klick auf ein Land öffnet Infos &amp; Fotos. Auf dem Globus: Linksklick markieren/entfernen, Rechtsklick = Infos.</p>
+    <div class="chips">${cn.length?cn.map(id=>`<span class="chip" data-info="${id}">${geoName(id)===id?id:esc(geoName(id))} ${d.info[id]&&d.info[id].photos&&d.info[id].photos.length?'📷':''}${d.info[id]&&d.info[id].notes?'📝':''}<button data-rmcountry="${id}">✕</button></span>`).join(""):'<span class="small">noch keine</span>'}</div></div>`;
+  html+=listCard("cities","🏙️","Städte",d.cities,"z.B. Berlin");
+
+  // Gewässer: angeklickte Flüsse (2D-Karte) + eigene Einträge
+  const wsel=Object.keys(d.waters), wc=d.waterCustom;
+  html+=`<div class="card"><h3>🌊 Gewässer (${wsel.length+wc.length})</h3>
+    <p class="small" style="margin:0 0 8px">Flüsse im Modus <b>„Karte"</b> direkt anklicken. Eigene zusätzlich eintragen:</p>
+    <div class="chips">${
+      wsel.map(id=>`<span class="chip">🌊 ${esc(riverName(id))}<button data-rmwater="${id}">✕</button></span>`).join("")+
+      wc.map((x,i)=>`<span class="chip">🌊 ${esc(x)}<button data-rmwc="${i}">✕</button></span>`).join("")||'<span class="small">noch keine</span>'
+    }</div>
+    <div class="addinline" style="margin-top:8px"><input type="text" id="wcName" placeholder="eigenes Gewässer, z.B. Bodensee"><button id="wcAdd">+</button></div></div>`;
+
+  // Gebirge: angeklickte Gebirge (2D-Karte) + eigene mit Emoji
+  const msel=Object.keys(d.mountains), mc=d.mtnCustom;
+  html+=`<div class="card"><h3>⛰️ Gebirge (${msel.length+mc.length})</h3>
+    <p class="small" style="margin:0 0 8px">Gebirge im Modus <b>„Karte"</b> direkt anklicken. Eigene mit Emoji zusätzlich:</p>
+    <div class="chips">${
+      msel.map(id=>`<span class="chip">⛰️ ${esc(mtnName(id))}<button data-rmmtn="${id}">✕</button></span>`).join("")+
+      mc.map((m,i)=>`<span class="chip">${m.emoji||'⛰️'} ${esc(m.name)}<button data-rmmc="${i}">✕</button></span>`).join("")||'<span class="small">noch keine</span>'
+    }</div>
+    <div class="addinline" style="margin-top:8px"><input type="text" id="mcName" placeholder="z.B. Zugspitze"><input type="text" id="mcEmoji" class="emoji" value="🏔️" maxlength="4"><button id="mcAdd">+</button></div></div>`;
+
+  // Reise-Chronik: Datum-Einträge (iDate) chronologisch als Zeitstrahl
+  const chron=chronicle(currentUserId);
+  html+=`<div class="card"><h3>🗓️ Reise-Chronik</h3>`;
+  if(!chron.length) html+=`<p class="small" style="margin:0">Noch keine Reisen mit Datum. Öffne ein Land (Rechtsklick / lange tippen) und trag bei „Wann warst du da?" ein Datum ein.</p>`;
+  else html+=`<div class="timeline">`+chron.map(e=>{ const f=geo&&geo.features.find(x=>x.id===e.id); const fa=f?factsFor(f):{flag:""};
+    return `<div class="tl" data-info="${e.id}"><span class="tldot" style="background:${u.color}"></span><div class="tlbody">
+      <div class="tldate">${esc(e.date)}</div>
+      <div class="tlname">${fa.flag?fa.flag+" ":""}${esc(e.name)} ${e.photos?'📷'+e.photos:''}</div>
+      ${e.notes?`<div class="tlnote">${esc(e.notes)}</div>`:''}</div></div>`; }).join("")+`</div>`;
+  html+=`</div>`;
+  return html;
+}
+function listCard(cat,icon,label,arr,ph){
+  return `<div class="card"><h3>${icon} ${label} (${arr.length})</h3>
+    <div class="addinline"><input type="text" data-addinput="${cat}" placeholder="${ph}"><button data-addbtn="${cat}">+</button></div>
+    <div class="chips">${arr.length?arr.map((x,i)=>`<span class="chip">${esc(x)}<button data-rm="${cat}" data-i="${i}">✕</button></span>`).join(""):'<span class="small" style="margin-top:8px">noch keine</span>'}</div></div>`;
+}
+function renderFamily(){
+  let html=`<div class="card"><h3>👨‍👩‍👧‍👦 Familie</h3>`;
+  state.users.forEach(u=>{ const c=counts(u.id); let badges=0;
+    for(const cat of ["countries","cities","waters","mountains"]) badges+=nextAchievement(cat,c[cat]).done.length;
+    const cov=coverageStats(u.id).pct;   // Weltabdeckung pro Person (OFFICIAL-Basis)
+    html+=`<div class="member-row"><span class="swatch" style="background:${u.color}"></span>
+      <span class="nm">${esc(u.name)}${u.id===currentUserId?' <span class="small">(du)</span>':''}</span>
+      <span class="counts">🌍${cov}% · 🗺️${c.countries} · 🏙️${c.cities} · 🌊${c.waters} · ⛰️${c.mountains}</span>
+      <span class="badgecount">🏆 ${badges}</span></div>`; });
+  html+=`</div><div class="card"><h3>🥇 Bestenliste</h3>`;
+  // Weltabdeckung als eigene Bestenlisten-Zeile, sortiert nach Prozent
+  const covRank=[...state.users].map(u=>({u,pct:coverageStats(u.id).pct})).sort((a,b)=>b.pct-a.pct);
+  html+=`<div class="ach"><div class="top"><span class="t">🌍 Weltabdeckung</span></div>`;
+  covRank.forEach((e,i)=>{ const medal=["🥇","🥈","🥉"][i]||`${i+1}.`;
+    html+=`<div class="member-row" style="border:none;padding:3px 0"><span style="width:22px">${medal}</span>
+      <span class="swatch" style="background:${e.u.color};width:14px;height:14px"></span><span class="nm">${esc(e.u.name)}</span>
+      <span class="counts">${e.pct}%</span></div>`; });
+  html+=`</div>`;
+  for(const cat of ["countries","cities","waters","mountains"]){ const L=LADDERS[cat];
+    const rank=[...state.users].sort((a,b)=>counts(b.id)[cat]-counts(a.id)[cat]);
+    html+=`<div class="ach"><div class="top"><span class="t">${L.icon} ${L.label}</span></div>`;
+    rank.forEach((u,i)=>{ const medal=["🥇","🥈","🥉"][i]||`${i+1}.`;
+      html+=`<div class="member-row" style="border:none;padding:3px 0"><span style="width:22px">${medal}</span>
+        <span class="swatch" style="background:${u.color};width:14px;height:14px"></span><span class="nm">${esc(u.name)}</span>
+        <span class="counts">${counts(u.id)[cat]}</span></div>`; });
+    html+=`</div>`; }
+  return html+`</div>`;
+}
+function bindPanel(){
+  document.querySelectorAll("[data-info]").forEach(el=>el.addEventListener("click",(e)=>{
+    if(e.target.matches("[data-rmcountry]")) return;
+    const f=geo&&geo.features.find(x=>x.id===el.dataset.info); if(f) openCountryInfo(f);
+  }));
+  document.querySelectorAll("[data-rmcountry]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
+    delete userData(currentUserId).countries[b.dataset.rmcountry]; save(); updateFills(); renderPanel(); });
+  document.querySelectorAll("[data-addbtn]").forEach(b=>b.onclick=()=>{ const cat=b.dataset.addbtn;
+    const inp=document.querySelector(`[data-addinput="${cat}"]`); const v=inp.value.trim(); if(!v) return;
+    userData(currentUserId)[cat].push(v); save(); renderPanel(); });
+  document.querySelectorAll("[data-addinput]").forEach(inp=>inp.addEventListener("keydown",e=>{ if(e.key==="Enter") document.querySelector(`[data-addbtn="${inp.dataset.addinput}"]`).click(); }));
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ userData(currentUserId)[b.dataset.rm].splice(+b.dataset.i,1); save(); renderPanel(); });
+
+  // Gewässer: angeklickte entfernen / eigene hinzufügen+entfernen
+  document.querySelectorAll("[data-rmwater]").forEach(b=>b.onclick=()=>{ delete userData(currentUserId).waters[b.dataset.rmwater]; save(); updateFills(); renderPanel(); });
+  document.querySelectorAll("[data-rmwc]").forEach(b=>b.onclick=()=>{ userData(currentUserId).waterCustom.splice(+b.dataset.rmwc,1); save(); renderPanel(); });
+  const wcAdd=$("#wcAdd");
+  if(wcAdd){ const add=()=>{ const v=$("#wcName").value.trim(); if(!v) return; userData(currentUserId).waterCustom.push(v); save(); renderPanel(); };
+    wcAdd.onclick=add; $("#wcName").addEventListener("keydown",e=>{ if(e.key==="Enter") add(); }); }
+
+  // Gebirge: angeklickte entfernen / eigene hinzufügen+entfernen
+  document.querySelectorAll("[data-rmmtn]").forEach(b=>b.onclick=()=>{ delete userData(currentUserId).mountains[b.dataset.rmmtn]; save(); updateFills(); renderPanel(); });
+  document.querySelectorAll("[data-rmmc]").forEach(b=>b.onclick=()=>{ userData(currentUserId).mtnCustom.splice(+b.dataset.rmmc,1); save(); renderPanel(); });
+  const mcAdd=$("#mcAdd");
+  if(mcAdd){ const add=()=>{ const name=$("#mcName").value.trim(); if(!name) return; userData(currentUserId).mtnCustom.push({name,emoji:$("#mcEmoji").value.trim()||"🏔️"}); save(); renderPanel(); };
+    mcAdd.onclick=add; $("#mcName").addEventListener("keydown",e=>{ if(e.key==="Enter") add(); }); }
+}
+
+/* ---------- Sichern / Laden (Backup) ----------
+   Export-Format: { app, version, exportedAt, state, photos }
+   - photos wird in Block 2 (IndexedDB) befüllt; aktuell liegen Fotos noch im state. */
+const APP_TAG="familien-weltkarte";
+const DATA_VERSION=3;
+async function exportData(){
+  const photos=await collectPhotos();           // {id:dataURL} aus IndexedDB (Block 2)
+  const payload={app:APP_TAG,version:DATA_VERSION,exportedAt:new Date().toISOString(),state,photos};
+  const blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download=`familien-weltkarte-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+async function importData(file){
+  let obj; try{ obj=JSON.parse(await file.text()); }catch(e){ alert("Die Datei ist kein gültiges JSON."); return; }
+  const st = (obj && obj.state) ? obj.state : obj;   // erlaubt auch eine reine state-Datei
+  if(!st || !Array.isArray(st.users) || typeof st.data!=="object" || !st.data){
+    alert("Die Datei hat nicht das erwartete Format (es fehlen 'users' und 'data')."); return;
+  }
+  if(!confirm("Aktuelle Daten wirklich durch die Datei ersetzen? Alle lokalen Markierungen werden überschrieben.")) return;
+  if(obj.photos) await restorePhotos(obj.photos);    // Fotos in IndexedDB schreiben (Block 2)
+  state=st; if(state.photosMigrated===undefined) state.photosMigrated=true;
+  normalizeState(); save();
+  currentUserId=null; closeModal();
+  $("#topbar").style.display="none"; $("#mapwrap").style.display="none"; $("#panel").classList.remove("open");
+  loginEl.style.display="flex"; renderLogin();
+  alert("Daten erfolgreich geladen.");
+}
+/* collectPhotos/restorePhotos sind im IndexedDB-Abschnitt definiert. */
+function normalizeState(){ if(!state.settings) state.settings={}; }
+
+/* Überlaufmenü (⋯): Sichern / Laden / Einstellungen */
+const moreMenu=$("#moreMenu");
+function closeMore(){ moreMenu.classList.remove("open"); }
+$("#btnMore").onclick=(e)=>{ e.stopPropagation();
+  // Aktiv-Status von "Alle anzeigen" im Menü spiegeln (Häkchen + Markierung)
+  const allBtn=moreMenu.querySelector('[data-act="all"]');
+  allBtn.classList.toggle("active",showAll); allBtn.textContent=(showAll?"✅ ":"👨‍👩‍👧 ")+"Alle anzeigen";
+  moreMenu.classList.toggle("open"); };
+moreMenu.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const a=b.dataset.act; closeMore();
+  if(a==="all"){ showAll=!showAll; updateFills(); }
+  else if(a==="backup") exportData();
+  else if(a==="restore") $("#importFile").click();
+  else if(a==="settings") openSettings();
+});
+document.addEventListener("click",e=>{ if(!e.target.closest("#moreWrap")) closeMore(); });
+$("#importFile").onchange=e=>{ const f=e.target.files[0]; if(f) importData(f); e.target.value=""; };
+
+/* ---------- Einstellungen (Heimatland konfigurierbar) ---------- */
+function openSettings(){
+  const opts = geo
+    ? [...geo.features].sort((a,b)=>countryName(a).localeCompare(countryName(b),"de"))
+        .map(f=>`<option value="${f.id}" ${f.id===homeId()?"selected":""}>${esc(countryName(f))}</option>`).join("")
+    : `<option value="${homeId()}">${esc(geoName(homeId()))}</option>`;
+  openModal(`<h2>⚙️ Einstellungen</h2>
+    <div class="field"><label>Heimatland (für die ganze Familie, immer in Gold markiert)</label>
+      <select id="setHome" style="width:100%;padding:11px 12px;border:1px solid #d7dde4;border-radius:10px;font-size:14px;font-family:inherit">${opts}</select></div>
+    <div class="modal-actions"><button class="btn ghost" id="setCancel">Abbrechen</button><button class="btn" id="setSave">Speichern</button></div>`);
+  $("#setCancel").onclick=closeModal;
+  $("#setSave").onclick=()=>{ state.settings.homeId=$("#setHome").value; save(); updateFills(); renderPanel(); closeModal(); };
+}
+/* Einstellungen werden über das ⋯-Menü geöffnet (siehe moreMenu-Handler). */
+
+/* ---------- Länder-Suche ---------- */
+const searchBox=$("#searchBox"), searchResults=$("#searchResults");
+function closeSearch(){ searchResults.classList.remove("open"); searchResults.innerHTML=""; }
+// robust über die D3-Datenbindung statt Attribut-Selektor (IDs mit Sonderzeichen/Leerzeichen brechen sonst)
+function flashCountry(id){ if(!countrySel) return; const sel=countrySel.filter(d=>d.id===id); if(sel.empty()) return;
+  sel.classed("found",true); setTimeout(()=>sel.classed("found",false),2000); }
+function animateGlobeTo(toRot,toScale){ const fromR=projection.rotate(), fromS=projection.scale();
+  const ivR=d3.interpolate(fromR,toRot), ivS=d3.interpolate(fromS,toScale);
+  const t0=performance.now();
+  (function tick(now){ const k=Math.min(1,(now-t0)/750), e=d3.easeCubicOut(k);
+    projection.rotate(ivR(e)).scale(ivS(e)); renderGeom(); if(k<1) requestAnimationFrame(tick); })(performance.now());
+}
+function gotoCountry(f){
+  closeSearch();
+  const [lon,lat]=d3.geoCentroid(f);
+  if(viewMode==="globe"){
+    // nach dem Drehen moderat heranzoomen, damit auch kleine Inselstaaten sichtbar werden
+    animateGlobeTo([-lon,-lat], Math.max(projection.scale(), baseScale*1.8));
+  } else { const W=mapNode.clientWidth,H=mapNode.clientHeight, p=projection([lon,lat]);
+    const t=d3.zoomIdentity.translate(W/2,H/2).scale(3).translate(-p[0],-p[1]);
+    svg.transition().duration(700).call(zoomBehavior.transform,t); }
+  setTimeout(()=>flashCountry(f.id), viewMode==="globe"?600:300);
+}
+if(searchBox){
+  searchBox.addEventListener("input",()=>{
+    const q=searchBox.value.trim().toLowerCase(); if(!q||!geo){ closeSearch(); return; }
+    const matches=geo.features.filter(f=>countryName(f).toLowerCase().includes(q))
+      .sort((a,b)=>countryName(a).localeCompare(countryName(b),"de")).slice(0,12);
+    if(!matches.length){ searchResults.innerHTML=`<button disabled style="color:#7a8694">Keine Treffer</button>`; searchResults.classList.add("open"); return; }
+    searchResults.innerHTML=matches.map(f=>`<button data-go="${f.id}">${esc(countryName(f))}</button>`).join("");
+    searchResults.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{ const f=geo.features.find(x=>x.id===b.dataset.go); searchBox.value=""; gotoCountry(f); });
+    searchResults.classList.add("open");
+  });
+  searchBox.addEventListener("keydown",e=>{ if(e.key==="Enter"){ const first=searchResults.querySelector("[data-go]"); if(first) first.click(); } else if(e.key==="Escape"){ closeSearch(); searchBox.blur(); } });
+  document.addEventListener("click",e=>{ if(!e.target.closest("#searchWrap")) closeSearch(); });
+}
+
+/* ---------- helpers ---------- */
+function geoName(id){ if(geo){ const f=geo.features.find(x=>x.id===id); if(f) return countryName(f); } return id; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+normalizeState();
+checkIDB();             // Verfügbarkeit von IndexedDB einmalig prüfen
+migratePhotos();        // alte base64-Fotos einmalig nach IndexedDB verschieben
+initSpaceBackground();
+renderLogin();
+</script>
+</body>
+</html>
